@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>BLIP Vision Captioning</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    
+    .header h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .header p {
+      font-size: 1.2rem;
+      color: rgba(255,255,255,0.9);
+      font-weight: 300;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    .card {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 2rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+    }
+    
+    .card-icon {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+    .card h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      color: #2d3748;
+    }
+    
+    .upload-area {
+      border: 2px dashed #cbd5e0;
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+    
+    .upload-area:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .upload-area.dragover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.02);
+    }
+    
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 1rem;
+      opacity: 0.6;
+    }
+    
+    .upload-text {
+      font-size: 1.1rem;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+    }
+    
+    .upload-hint {
+      font-size: 0.9rem;
+      color: #718096;
+    }
+    
+    input[type="file"] {
+      display: none;
+    }
+    
+    .preview-container {
+      margin: 1.5rem 0;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      display: none;
+    }
+    
+    .preview-container.show {
+      display: block;
+    }
+    
+    video, img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .btn:hover::before {
+      left: 100%;
+    }
+    
+    .caption-result {
+      margin-top: 1.5rem;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, #f7fafc, #edf2f7);
+      border-radius: 16px;
+      border-left: 4px solid #667eea;
+      display: none;
+      animation: slideIn 0.5s ease;
+    }
+    
+    .caption-result.show {
+      display: block;
+    }
+    
+    .caption-text {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #2d3748;
+      margin-bottom: 1rem;
+    }
+    
+    .caption-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.9rem;
+      color: #718096;
+    }
+    
+    .speaker-btn {
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    .speaker-btn:hover {
+      background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .live-controls {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .live-controls .btn {
+      flex: 1;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+    
+    .status-indicator.recording {
+      background: #ef4444;
+      animation: pulse 1s infinite;
+    }
+    
+    .status-indicator.idle {
+      background: #9ca3af;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+      margin-right: 0.5rem;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      
+      .card {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BLIP Vision</h1>
+      <p>AI-powered image and video captioning with real-time analysis</p>
+    </div>
+    
+    <div class="grid">
+      <!-- Image Upload Card -->
+      <div class="card">
+        <div class="card-icon">📸</div>
+        <h2>Image Captioning</h2>
+        
+        <div class="upload-area" onclick="document.getElementById('img-input').click()">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-text">Click to upload an image</div>
+          <div class="upload-hint">Supports JPG, PNG, WebP</div>
+        </div>
+        
+        <input type="file" id="img-input" accept="image/*">
+        
+        <div class="preview-container" id="img-preview-container">
+          <img id="img-preview" alt="Image preview">
+        </div>
+        
+        <button class="btn" id="img-caption-btn" onclick="captionImage()" disabled>
+          Generate Caption
+        </button>
+        
+        <div class="caption-result" id="img-caption-result">
+          <div class="caption-text" id="img-caption-text"></div>
+          <div class="caption-meta">
+            <button class="speaker-btn" onclick="speakCaption('img-caption-text')">🔊</button>
+            <span>AI Generated Caption</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Video Upload Card -->
+      <div class="card">
+        <div class="card-icon">🎬</div>
+        <h2>Video Narration</h2>
+        
+        <div class="upload-area" onclick="document.getElementById('vid-input').click()">
+          <div class="upload-icon">🎥</div>
+          <div class="upload-text">Click to upload a video</div>
+          <div class="upload-hint">Generate full video narration</div>
+        </div>
+        
+        <input type="file" id="vid-input" accept="video/*">
+        
+        <div class="preview-container" id="vid-preview-container">
+          <video id="vid-preview" controls></video>
+        </div>
+        
+        <button class="btn" id="vid-caption-btn" onclick="captionVideo()" disabled>
+          Generate Video Narration
+        </button>
+        
+        <div class="caption-result" id="vid-caption-result">
+          <div class="caption-text" id="vid-caption-text"></div>
+          <div class="caption-meta">
+            <button class="speaker-btn" onclick="speakCaption('vid-caption-text')">🔊</button>
+            <span>Full Video Narration</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Live Webcam Card -->
+<div class="card">
+  <div class="card-icon">📹</div>
+  <h2>Live Captioning</h2>
+
+  <div class="preview-container" id="live-preview-container">
+    <video id="live-video" autoplay playsinline muted></video>
+  </div>
+
+  <!-- Live caption result should be here -->
+  <div class="caption-result" id="live-caption-result">
+    <div class="caption-text" id="live-caption-text"></div>
+    <div class="caption-meta">
+      <button class="speaker-btn" onclick="speakCaption('live-caption-text')">🔊</button>
+      <span>Live Analysis</span>
+    </div>
+  </div>
+
+  <div class="live-controls">
+    <button class="btn" id="start-live-btn" onclick="startLive()">
+      <span class="status-indicator idle"></span> Start Live Feed
+    </button>
+    <button class="btn" id="stop-live-btn" onclick="stopLive()" disabled style="background: #ef4444;">
+      Stop Feed
+    </button>
+    <button class="btn" id="stop-speech-btn" onclick="stopSpeech()" disabled style="background: #f59e0b;">
+      Stop Narration
+    </button>
+  </div>
+</div>
+
+          </button>
+        </div>
+        
+        <div class="caption-result" id="live-caption-result">
+          <div class="caption-text" id="live-caption-text"></div>
+          <div class="caption-meta">
+            <button class="speaker-btn" onclick="speakCaption('live-caption-text')">🔊</button>
+            <span>Live Analysis</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/static/script.js"></script>
+</body>
+</html>
